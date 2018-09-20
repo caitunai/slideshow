@@ -17,6 +17,8 @@ var path     = require("path");
 var spawn    = require("child_process").spawn;
 var es       = require("event-stream");
 var Promise  = require("bluebird");
+var fs       = require('fs');
+var tmpWrite = require('temp-write');
 
 /*  the supported connectors  */
 var connectors = {
@@ -31,6 +33,13 @@ var connectors = {
     "win32-powerpoint2013":  "connector-win-ppt2010.bat"
 };
 
+var tempFile = '';
+
+if (os.platform() === 'win32') {
+    var jsfilepath = path.join(__dirname, 'connector-win-ppt2010.js');
+    var tempFile = tmpWrite.sync(fs.readFileSync(jsfilepath, 'utf8'), 'connector-win-ppt2010.js');
+}
+
 /*  the connector API constructor  */
 var connector = function (application) {
     /*  determine connector filename  */
@@ -41,10 +50,17 @@ var connector = function (application) {
     var filename = path.join(__dirname, cn);
 
     /*  spawn the connector as a child process  */
-    this.c = spawn(filename, [], {
-        stdio: [ "pipe", "pipe", process.stderr ],
-        env: { "CONNECTOR": "FIXME" }
-    });
+    if (os.platform() === 'win32') {
+        this.c = spawn('cscript', ['//Nologo', '//B', '//E:JScript', tempFile], {
+            stdio: [ "pipe", "pipe", process.stderr ],
+            env: { "CONNECTOR": "FIXME" }
+        });
+    } else {
+        this.c = spawn(filename, [], {
+            stdio: [ "pipe", "pipe", process.stderr ],
+            env: { "CONNECTOR": "FIXME" }
+        });
+    }
 
     /*  set the stdin/stdout pipes to UTF-8 encoding mode  */
     this.c.stdin.setEncoding("utf8");
